@@ -399,16 +399,19 @@ def check_scheduled_posts():
             try:
                 for plat in platforms:
                     if plat == "tiktok":
-                        # Run TikTok in subprocess to avoid Playwright/asyncio conflict
                         import subprocess, json as _json
                         proc = subprocess.run(
-                            ["/opt/titanchess-poster/venv/bin/python", "-c",
-                             f"from poster.tiktok import upload_video; import json; r=upload_video({repr(post['video_path'])}, {repr(post['caption'])}); print(json.dumps(r))"],
+                            ["/opt/titanchess-poster/venv/bin/python",
+                             os.path.join(os.path.dirname(__file__), "upload_tiktok.py"),
+                             post["video_path"], post["caption"]],
                             capture_output=True, text=True, timeout=300,
-                            cwd="/opt/titanchess-poster"
+                            cwd=os.path.dirname(__file__)
                         )
                         if proc.returncode == 0 and proc.stdout.strip():
-                            r = _json.loads(proc.stdout.strip())
+                            try:
+                                r = _json.loads(proc.stdout.strip().split('\n')[-1])
+                            except _json.JSONDecodeError:
+                                r = {"success": False, "error": f"Bad output: {proc.stdout[:100]}"}
                         else:
                             r = {"success": False, "error": proc.stderr[:200] if proc.stderr else "subprocess failed"}
                         results.append(f"TikTok: {'✅' if r['success'] else '❌ ' + r.get('error', '')}")
