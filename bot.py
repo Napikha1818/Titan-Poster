@@ -78,14 +78,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await update.message.reply_text(
         "👋 *TitanChess Auto-Poster*\n\n"
-        "Commands:\n"
-        "/post — upload video ke TikTok sekarang\n"
-        "/schedule — jadwalkan upload\n"
-        "/pending — lihat jadwal pending\n"
-        "/cancelschedule — batalkan jadwal\n"
+        "*Upload Sekarang:*\n"
+        "/post — kirim video, langsung upload ke TikTok\n\n"
+        "*Jadwalkan Upload:*\n"
+        "/schedule — kirim video, atur waktu posting\n"
+        "/pending — lihat semua jadwal yang belum diposting\n"
+        "/cancelschedule 1 — batalkan jadwal (ganti 1 dengan ID)\n\n"
+        "*Lainnya:*\n"
         "/info — cek status VPS\n"
-        "/cancel — batalkan proses\n\n"
-        "Support: video langsung atau Google Drive link",
+        "/cancel — batalkan proses yang sedang berjalan\n\n"
+        "📹 Kirim video langsung atau Google Drive link",
         parse_mode="Markdown",
     )
 
@@ -191,9 +193,13 @@ async def receive_caption(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if context.user_data.get("mode") == "schedule":
         await update.message.reply_text(
-            "⏰ Masukkan waktu posting (WIB):\n"
-            "Format: `YYYY-MM-DD HH:MM`\n"
-            "Contoh: `2026-04-15 20:00`",
+            "⏰ *Masukkan waktu posting (WIB):*\n\n"
+            "Format: `YYYY-MM-DD HH:MM`\n\n"
+            "Contoh:\n"
+            "• Hari ini jam 8 malam: `2026-04-13 20:00`\n"
+            "• Besok jam 3 sore: `2026-04-14 15:00`\n"
+            "• Minggu depan: `2026-04-20 12:00`\n\n"
+            "Waktu menggunakan WIB (Jakarta)",
             parse_mode="Markdown",
         )
         return WAIT_SCHEDULE_TIME
@@ -218,7 +224,16 @@ async def receive_schedule_time(update: Update, context: ContextTypes.DEFAULT_TY
 
     post_id = add_post(chat_id, video_path, caption, dt)
     time_str = dt.strftime("%d %b %Y %H:%M WIB")
-    await update.message.reply_text(f"✅ Dijadwalkan pada *{time_str}*\nID: #{post_id}", parse_mode="Markdown")
+    await update.message.reply_text(
+        f"✅ *Jadwal tersimpan!*\n\n"
+        f"📅 Waktu: *{time_str}*\n"
+        f"📝 Caption: {caption[:50]}{'...' if len(caption) > 50 else ''}\n"
+        f"🆔 ID: #{post_id}\n\n"
+        f"Bot akan otomatis upload ke TikTok pada waktu tersebut.\n"
+        f"Cek jadwal: /pending\n"
+        f"Batalkan: /cancelschedule {post_id}",
+        parse_mode="Markdown",
+    )
     return ConversationHandler.END
 
 
