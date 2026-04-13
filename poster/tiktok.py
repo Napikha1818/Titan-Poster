@@ -2,6 +2,8 @@ import os
 import logging
 from datetime import datetime
 from tiktok_uploader.upload import TikTokUploader
+from tiktok_uploader.browsers import get_browser
+from playwright.sync_api import sync_playwright
 
 logger = logging.getLogger(__name__)
 
@@ -19,20 +21,31 @@ setInterval(() => {
 
 
 class PatchedUploader(TikTokUploader):
-    """TikTokUploader with auto-dismiss joyride overlay."""
+    """TikTokUploader with overlay dismiss + proper headless args for VPS."""
 
     @property
     def page(self):
-        page = super().page
-        # Inject dismiss script ke setiap page baru
-        if not getattr(self, '_patched', False):
-            page.context.add_init_script(DISMISS_OVERLAY_JS)
-            try:
-                page.evaluate(DISMISS_OVERLAY_JS.replace("setInterval", "setTimeout"))
-            except Exception:
-                pass
-            self._patched = True
-        return page
+        if self._page is None:
+            logger.debug("Creating patched browser instance...")
+            pw = sync_playwright().start()
+            browser = pw.chromium.launch(
+                headless=True,
+                args=[
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--single-process',
+                ]
+            )
+            context = browser.new_context(
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                viewport={'width': 1280, 'height': 720},
+            )
+            context.add_init_script(DISMISS_OVERLAY_JS)
+            self._page = context.new_page()
+            self._page = self.auth.authenticate_agent(self._page)
+        return self._page
 
 
 def upload_video(video_path: str, caption: str, schedule_time: datetime = None) -> dict:
