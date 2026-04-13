@@ -399,7 +399,18 @@ def check_scheduled_posts():
             try:
                 for plat in platforms:
                     if plat == "tiktok":
-                        r = tt_upload(post["video_path"], post["caption"])
+                        # Run TikTok in subprocess to avoid Playwright/asyncio conflict
+                        import subprocess, json as _json
+                        proc = subprocess.run(
+                            ["/opt/titanchess-poster/venv/bin/python", "-c",
+                             f"from poster.tiktok import upload_video; import json; r=upload_video({repr(post['video_path'])}, {repr(post['caption'])}); print(json.dumps(r))"],
+                            capture_output=True, text=True, timeout=300,
+                            cwd="/opt/titanchess-poster"
+                        )
+                        if proc.returncode == 0 and proc.stdout.strip():
+                            r = _json.loads(proc.stdout.strip())
+                        else:
+                            r = {"success": False, "error": proc.stderr[:200] if proc.stderr else "subprocess failed"}
                         results.append(f"TikTok: {'✅' if r['success'] else '❌ ' + r.get('error', '')}")
                     elif plat == "youtube":
                         r = yt_upload(post["video_path"], post.get("yt_title", "Video"), post.get("yt_desc", ""))
