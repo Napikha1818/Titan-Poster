@@ -3,6 +3,7 @@
 tiktok_cookies.txt
 client_secret.json
 youtube_token.pickle
+ig_session.json
 *.pickle
 
 # Videos (besar, tidak perlu di repo)

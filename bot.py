@@ -17,6 +17,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from poster.tiktok import upload_video as tt_upload
 from poster.youtube import upload_video as yt_upload
+from poster.instagram import upload_reel as ig_upload
 from scheduler import add_post, get_pending, mark_done, mark_failed, remove_post, parse_wib_datetime
 
 load_dotenv()
@@ -164,7 +165,8 @@ async def receive_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Pilih platform:\n"
             "1 — TikTok\n"
             "2 — YouTube Shorts\n"
-            "3 — Keduanya (TikTok + YouTube)"
+            "3 — Instagram Reels\n"
+            "4 — Semua (TikTok + YouTube + Instagram)"
         )
         return WAIT_PLATFORM
     except Exception as e:
@@ -194,7 +196,8 @@ async def receive_gdrive_link(update: Update, context: ContextTypes.DEFAULT_TYPE
         "Pilih platform:\n"
         "1 — TikTok\n"
         "2 — YouTube Shorts\n"
-        "3 — Keduanya (TikTok + YouTube)"
+        "3 — Instagram Reels\n"
+        "4 — Semua (TikTok + YouTube + Instagram)"
     )
     return WAIT_PLATFORM
 
@@ -203,10 +206,10 @@ async def receive_gdrive_link(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def receive_platform(update: Update, context: ContextTypes.DEFAULT_TYPE):
     choice = update.message.text.strip()
-    mapping = {"1": ["tiktok"], "2": ["youtube"], "3": ["tiktok", "youtube"]}
+    mapping = {"1": ["tiktok"], "2": ["youtube"], "3": ["instagram"], "4": ["tiktok", "youtube", "instagram"]}
     platforms = mapping.get(choice)
     if not platforms:
-        await update.message.reply_text("❌ Pilih 1, 2, atau 3.")
+        await update.message.reply_text("❌ Pilih 1, 2, 3, atau 4.")
         return WAIT_PLATFORM
 
     context.user_data["platforms"] = platforms
@@ -296,6 +299,14 @@ async def _execute_now(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 results.append(f"✅ YouTube: {r['url']}")
             else:
                 results.append(f"❌ YouTube: {r['error']}")
+
+        elif plat == "instagram":
+            caption = context.user_data.get("caption", "")
+            r = await asyncio.to_thread(ig_upload, video_path, caption)
+            if r["success"]:
+                results.append(f"✅ Instagram: {r['url']}")
+            else:
+                results.append(f"❌ Instagram: {r['error']}")
 
     await status.edit_text("\n".join(results))
     return ConversationHandler.END
@@ -404,6 +415,9 @@ def check_scheduled_posts():
                     elif plat == "youtube":
                         r = yt_upload(post["video_path"], post.get("yt_title", "Video"), post.get("yt_desc", ""))
                         results.append(f"YouTube: {'✅ ' + r.get('url', '') if r['success'] else '❌ ' + r.get('error', '')}")
+                    elif plat == "instagram":
+                        r = ig_upload(post["video_path"], post["caption"])
+                        results.append(f"Instagram: {'✅ ' + r.get('url', '') if r['success'] else '❌ ' + r.get('error', '')}")
 
                 mark_done(post["id"], "\n".join(results))
                 asyncio.run(_notify(post["chat_id"], f"📤 Scheduled post #{post['id']}:\n" + "\n".join(results)))
