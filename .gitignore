@@ -1,0 +1,40 @@
+# Credentials & secrets
+.env
+tiktok_cookies.txt
+client_secret.json
+youtube_token.pickle
+*.pickle
+
+# Videos (besar, tidak perlu di repo)
+videos/
+*.mp4
+*.mkv
+*.avi
+*.mov
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Temp
+tmp/

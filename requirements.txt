@@ -1,0 +1,9 @@
+python-telegram-bot>=20.0
+flask
+waitress
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2
+google-cloud-firestore
+tiktok-uploader
+python-dotenv
