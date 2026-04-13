@@ -9,4 +9,3 @@ tiktok-uploader
 python-dotenv
 psutil
 apscheduler>=3.10
-instagrapi>=2.0
