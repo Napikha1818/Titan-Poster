@@ -380,6 +380,12 @@ async def cancelschedule_command(update: Update, context: ContextTypes.DEFAULT_T
         await update.message.reply_text(f"❌ Jadwal #{post_id} tidak ditemukan.")
 
 
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data.clear()
+    await update.message.reply_text("❌ Dibatalkan.")
+    return ConversationHandler.END
+
+
 async def updatecookies_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Update TikTok session ID via Telegram."""
     if not is_owner(update):
