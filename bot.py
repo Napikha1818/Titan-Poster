@@ -13,7 +13,7 @@ from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
     ConversationHandler, filters, ContextTypes,
 )
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 
 from poster.tiktok import upload_video as tt_upload
 from scheduler import add_post, get_pending, mark_done, mark_failed, remove_post, parse_wib_datetime
@@ -283,7 +283,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ── Scheduler background job ─────────────────────────────────────────────
 
-async def check_scheduled_posts():
+def check_scheduled_posts():
     """Cek dan eksekusi jadwal yang sudah waktunya."""
     now = datetime.now(WIB)
     posts = get_pending()
@@ -293,17 +293,24 @@ async def check_scheduled_posts():
         if scheduled_time <= now:
             logger.info(f"⏰ Executing scheduled post #{post['id']}")
             try:
-                result = await asyncio.to_thread(tt_upload, post["video_path"], post["caption"])
-                bot = Bot(token=TOKEN)
+                result = tt_upload(post["video_path"], post["caption"])
                 if result["success"]:
                     mark_done(post["id"])
-                    await bot.send_message(chat_id=post["chat_id"], text=f"✅ Scheduled post #{post['id']} berhasil di-upload ke TikTok!")
+                    logger.info(f"✅ Scheduled post #{post['id']} uploaded!")
+                    # Notify via Telegram
+                    import asyncio
+                    asyncio.run(_notify(post["chat_id"], f"✅ Scheduled post #{post['id']} berhasil di-upload ke TikTok!"))
                 else:
                     mark_failed(post["id"], result.get("error", "unknown"))
-                    await bot.send_message(chat_id=post["chat_id"], text=f"❌ Scheduled post #{post['id']} gagal:\n{result.get('error')}")
+                    asyncio.run(_notify(post["chat_id"], f"❌ Scheduled post #{post['id']} gagal:\n{result.get('error')}"))
             except Exception as e:
                 mark_failed(post["id"], str(e))
                 logger.error(f"❌ Scheduled post #{post['id']} error: {e}")
+
+
+async def _notify(chat_id: int, text: str):
+    bot = Bot(token=TOKEN)
+    await bot.send_message(chat_id=chat_id, text=text)
 
 
 # ── Main ─────────────────────────────────────────────────────────────────
@@ -355,7 +362,7 @@ if __name__ == "__main__":
     app.add_handler(conv)
 
     # Start scheduler — cek setiap 30 detik
-    scheduler = AsyncIOScheduler(timezone="Asia/Jakarta")
+    scheduler = BackgroundScheduler(timezone="Asia/Jakarta")
     scheduler.add_job(check_scheduled_posts, "interval", seconds=30)
     scheduler.start()
     print("📅 Scheduler aktif (cek setiap 30 detik)")
