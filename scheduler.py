@@ -3,83 +3,75 @@ import json
 import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from google.cloud import firestore
 
 logger = logging.getLogger(__name__)
 WIB = ZoneInfo("Asia/Jakarta")
-db = None
+SCHEDULE_FILE = os.path.join(os.path.dirname(__file__), "scheduled_posts.json")
 
 
-def get_db():
-    global db
-    if db is None:
-        db = firestore.Client()
-    return db
+def _load() -> list:
+    if not os.path.exists(SCHEDULE_FILE):
+        return []
+    with open(SCHEDULE_FILE, "r") as f:
+        return json.load(f)
 
 
-def save_scheduled_post(chat_id: int, platform: str, video_path: str, metadata: dict, scheduled_time: datetime) -> str:
-    """
-    Simpan jadwal post ke Firestore.
+def _save(posts: list):
+    with open(SCHEDULE_FILE, "w") as f:
+        json.dump(posts, f, indent=2, default=str)
 
-    Returns:
-        doc_id: ID dokumen Firestore
-    """
-    doc = {
+
+def add_post(chat_id: int, video_path: str, caption: str, scheduled_time: datetime) -> int:
+    """Tambah jadwal. Returns post ID."""
+    posts = _load()
+    post_id = max([p["id"] for p in posts], default=0) + 1
+    posts.append({
+        "id": post_id,
         "chat_id": chat_id,
-        "platform": platform,          # "youtube" | "tiktok"
         "video_path": video_path,
-        "metadata": metadata,          # title, description, caption, tags, privacy
-        "scheduled_time": scheduled_time,
+        "caption": caption,
+        "scheduled_time": scheduled_time.isoformat(),
         "status": "pending",
-        "created_at": datetime.now(WIB),
-    }
-    ref = get_db().collection("scheduled_posts").add(doc)
-    doc_id = ref[1].id
-    logger.info(f"📅 Scheduled post saved: {doc_id} at {scheduled_time}")
-    return doc_id
-
-
-def get_pending_posts(now: datetime = None) -> list:
-    """Ambil semua post yang sudah waktunya dieksekusi."""
-    if now is None:
-        now = datetime.now(WIB)
-
-    docs = (
-        get_db()
-        .collection("scheduled_posts")
-        .where("status", "==", "pending")
-        .where("scheduled_time", "<=", now)
-        .stream()
-    )
-    return [{"id": d.id, **d.to_dict()} for d in docs]
-
-
-def mark_done(doc_id: str, result: dict):
-    """Update status post setelah dieksekusi."""
-    get_db().collection("scheduled_posts").document(doc_id).update({
-        "status": "done",
-        "result": result,
-        "executed_at": datetime.now(WIB),
     })
+    _save(posts)
+    logger.info(f"📅 Scheduled post #{post_id} at {scheduled_time}")
+    return post_id
 
 
-def mark_failed(doc_id: str, error: str):
-    """Update status post jika gagal."""
-    get_db().collection("scheduled_posts").document(doc_id).update({
-        "status": "failed",
-        "error": error,
-        "executed_at": datetime.now(WIB),
-    })
+def get_pending() -> list:
+    """Ambil semua post pending."""
+    return [p for p in _load() if p["status"] == "pending"]
+
+
+def mark_done(post_id: int, result: str = "success"):
+    posts = _load()
+    for p in posts:
+        if p["id"] == post_id:
+            p["status"] = "done"
+            p["result"] = result
+    _save(posts)
+
+
+def mark_failed(post_id: int, error: str):
+    posts = _load()
+    for p in posts:
+        if p["id"] == post_id:
+            p["status"] = "failed"
+            p["error"] = error
+    _save(posts)
+
+
+def remove_post(post_id: int) -> bool:
+    posts = _load()
+    new_posts = [p for p in posts if p["id"] != post_id]
+    if len(new_posts) == len(posts):
+        return False
+    _save(new_posts)
+    return True
 
 
 def parse_wib_datetime(dt_str: str) -> datetime | None:
-    """
-    Parse string datetime WIB.
-    Format yang diterima: "2026-04-15 20:00" atau "2026-04-15 20:00:00"
-
-    Returns:
-        datetime dengan timezone WIB, atau None jika format salah
-    """
+    """Parse 'YYYY-MM-DD HH:MM' ke datetime WIB."""
     for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S"):
         try:
             dt = datetime.strptime(dt_str, fmt)

@@ -8,3 +8,4 @@ google-cloud-firestore
 tiktok-uploader
 python-dotenv
 psutil
+apscheduler>=3.10
