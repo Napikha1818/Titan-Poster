@@ -86,6 +86,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/cancelschedule 1 — batalkan jadwal\n\n"
         "*Lainnya:*\n"
         "/info — cek status VPS\n"
+        "/updatecookies <id> — update TikTok session\n"
         "/cancel — batalkan proses\n\n"
         "📹 Support: video langsung atau Google Drive link\n"
         "🎯 Platform: TikTok, YouTube Shorts, atau keduanya",
@@ -379,7 +380,50 @@ async def cancelschedule_command(update: Update, context: ContextTypes.DEFAULT_T
         await update.message.reply_text(f"❌ Jadwal #{post_id} tidak ditemukan.")
 
 
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def updatecookies_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Update TikTok session ID via Telegram."""
+    if not is_owner(update):
+        return
+    args = context.args
+    if not args:
+        await update.message.reply_text(
+            "Usage: /updatecookies <session_id>\n\n"
+            "Cara dapat session ID:\n"
+            "1. Buka tiktok.com di Chrome, login\n"
+            "2. F12 → Application → Cookies → tiktok.com\n"
+            "3. Cari 'sessionid' → copy value\n"
+            "4. Kirim: /updatecookies VALUE_DISINI"
+        )
+        return
+
+    new_session_id = args[0].strip()
+    cookies_file = os.getenv("TIKTOK_COOKIES_FILE", "tiktok_cookies.txt")
+
+    try:
+        # Read existing cookies
+        if os.path.exists(cookies_file):
+            with open(cookies_file, "r") as f:
+                content = f.read()
+            # Replace sessionid line
+            import re as _re
+            new_content = _re.sub(
+                r'\.tiktok\.com\tTRUE\t/\tFALSE\t\d+\tsessionid\t\S+',
+                f'.tiktok.com\tTRUE\t/\tFALSE\t2147483647\tsessionid\t{new_session_id}',
+                content
+            )
+            if new_session_id not in new_content:
+                # sessionid line not found, append it
+                new_content += f'\n.tiktok.com\tTRUE\t/\tFALSE\t2147483647\tsessionid\t{new_session_id}\n'
+        else:
+            new_content = f'# Netscape HTTP Cookie File\n.tiktok.com\tTRUE\t/\tFALSE\t2147483647\tsessionid\t{new_session_id}\n'
+
+        with open(cookies_file, "w") as f:
+            f.write(new_content)
+
+        await update.message.reply_text("✅ TikTok cookies berhasil diupdate! Coba /post sekarang.")
+        logger.info(f"TikTok cookies updated via Telegram")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Gagal update cookies: {e}")
     context.user_data.clear()
     await update.message.reply_text("❌ Dibatalkan.")
     return ConversationHandler.END
@@ -491,6 +535,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("info", info_command))
     app.add_handler(CommandHandler("pending", pending_command))
     app.add_handler(CommandHandler("cancelschedule", cancelschedule_command))
+    app.add_handler(CommandHandler("updatecookies", updatecookies_command))
     app.add_handler(conv)
 
     scheduler = BackgroundScheduler(timezone="Asia/Jakarta")
