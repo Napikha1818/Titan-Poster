@@ -71,5 +71,14 @@ def upload_video(video_path: str, caption: str, schedule_time: datetime = None) 
             return {"success": False, "error": "Upload gagal (video mungkin tidak ter-post)"}
 
     except Exception as e:
-        logger.error(f"❌ TikTok upload failed: {e}")
-        return {"success": False, "error": str(e)}
+        error_str = str(e)
+        logger.error(f"❌ TikTok upload failed: {error_str}")
+
+        # Detect cookie expired
+        if "login" in error_str.lower() or "logged out" in error_str.lower() or "redirect" in error_str.lower():
+            return {
+                "success": False,
+                "error": "🔑 COOKIE EXPIRED!\n\nCookies TikTok sudah kadaluarsa.\n\nCara update:\n1. Buka tiktok.com di Chrome, pastikan login\n2. F12 → Console → jalankan script export cookies\n3. Update file tiktok_cookies.txt di VPS"
+            }
+
+        return {"success": False, "error": error_str}
