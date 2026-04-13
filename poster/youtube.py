@@ -13,6 +13,16 @@ SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 TOKEN_FILE = "youtube_token.pickle"
 CLIENT_SECRET_FILE = os.getenv("YOUTUBE_CLIENT_SECRET_FILE", "client_secret.json")
 
+# Template yang otomatis ditambahkan di bawah setiap deskripsi
+YT_DESCRIPTION_TEMPLATE = """
+---
+🔥 Get TitanChess Engine: https://titanchess.online
+💬 Join our Telegram: https://t.me/TitanChessss
+♟️ Play on Chess.com: https://chess.com
+
+#chess #titanchess #shorts #chesscom #bullet #blitz
+"""
+
 
 def get_youtube_service():
     """Get authenticated YouTube service. Handles token refresh automatically."""
@@ -51,10 +61,13 @@ def upload_video(video_path: str, title: str, description: str = "", tags: list 
     try:
         youtube = get_youtube_service()
 
+        # Append template ke description
+        full_description = description.strip() + "\n" + YT_DESCRIPTION_TEMPLATE.strip()
+
         body = {
             "snippet": {
                 "title": title,
-                "description": description,
+                "description": full_description,
                 "tags": tags or ["chess", "titanchess", "chesscom"],
                 "categoryId": "20",  # Gaming
             },

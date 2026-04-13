@@ -406,15 +406,23 @@ def check_scheduled_posts():
                         results.append(f"YouTube: {'✅ ' + r.get('url', '') if r['success'] else '❌ ' + r.get('error', '')}")
 
                 mark_done(post["id"], "\n".join(results))
-                asyncio.run(_notify(post["chat_id"], f"📤 Scheduled post #{post['id']}:\n" + "\n".join(results)))
+                _notify_sync(post["chat_id"], f"📤 Scheduled post #{post['id']}:\n" + "\n".join(results))
             except Exception as e:
                 mark_failed(post["id"], str(e))
                 logger.error(f"❌ Scheduled post #{post['id']} error: {e}")
 
 
-async def _notify(chat_id: int, text: str):
-    bot = Bot(token=TOKEN)
-    await bot.send_message(chat_id=chat_id, text=text)
+def _notify_sync(chat_id: int, text: str):
+    """Send Telegram notification from background thread."""
+    import requests as req
+    try:
+        req.post(
+            f"https://api.telegram.org/bot{TOKEN}/sendMessage",
+            json={"chat_id": chat_id, "text": text},
+            timeout=10
+        )
+    except Exception as e:
+        logger.error(f"Failed to send notification: {e}")
 
 
 # ── Main ─────────────────────────────────────────────────────────────────
