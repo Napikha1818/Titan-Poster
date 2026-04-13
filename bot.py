@@ -95,7 +95,7 @@ async def post_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     await update.message.reply_text(
         "📹 Kirim videonya sekarang.\n"
-        "Bisa kirim file langsung (< 50MB) atau Google Drive link."
+        "Bisa kirim file langsung (sampai 2GB) atau Google Drive link."
     )
     return WAIT_VIDEO
 
@@ -183,8 +183,20 @@ if __name__ == "__main__":
         print("❌ TELEGRAM_BOT_TOKEN tidak ditemukan di .env!")
         exit(1)
 
+    USE_LOCAL = os.getenv("USE_LOCAL_API_SERVER", "false").lower() == "true"
+    LOCAL_API_URL = os.getenv("LOCAL_API_URL", "http://127.0.0.1:8081/bot")
+    LOCAL_FILE_URL = os.getenv("LOCAL_FILE_URL", "http://127.0.0.1:8081/file/bot")
+
     print("🤖 Starting TitanChess Poster Bot (polling mode)...")
-    app = ApplicationBuilder().token(TOKEN).build()
+    builder = ApplicationBuilder().token(TOKEN)
+
+    if USE_LOCAL:
+        print("⚡ Local API Server aktif — support file sampai 2GB!")
+        builder.base_url(LOCAL_API_URL)
+        builder.base_file_url(LOCAL_FILE_URL)
+        builder.local_mode(True)
+
+    app = builder.build()
 
     conv = ConversationHandler(
         entry_points=[CommandHandler("post", post_start)],

@@ -1,0 +1,14 @@
+version: '3.3'
+services:
+  telegram-bot-api:
+    image: aiogram/telegram-bot-api:latest
+    ports:
+      - "8081:8081"
+    environment:
+      - TELEGRAM_STAT_PORT=8082
+      - TELEGRAM_LOCAL=1
+      - TELEGRAM_API_ID=38682022
+      - TELEGRAM_API_HASH=d57f6e7b0d20b97cc454264d5273f2f3
+    volumes:
+      - ./telegram-bot-api-data:/var/lib/telegram-bot-api
+    restart: always
