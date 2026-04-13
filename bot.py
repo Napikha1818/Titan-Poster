@@ -113,8 +113,8 @@ async def receive_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file_name = getattr(video, "file_name", None) or f"video_{video.file_id}.mp4"
         file_path = os.path.join(tmp_dir, file_name)
 
-        tg_file = await context.bot.get_file(video.file_id)
-        await tg_file.download_to_drive(file_path)
+        tg_file = await context.bot.get_file(video.file_id, read_timeout=300, write_timeout=300, connect_timeout=60)
+        await tg_file.download_to_drive(file_path, read_timeout=1800, write_timeout=1800, connect_timeout=120)
         context.user_data["video_path"] = file_path
 
         size_mb = os.path.getsize(file_path) / (1024 * 1024)
