@@ -3,6 +3,8 @@ import re
 import logging
 import asyncio
 import requests
+import psutil
+import platform
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import (
@@ -81,6 +83,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "👋 *TitanChess Auto-Poster*\n\n"
         "Commands:\n"
         "/post — upload video ke TikTok\n"
+        "/info — cek status VPS\n"
         "/cancel — batalkan proses\n\n"
         "Support: video langsung atau Google Drive link",
         parse_mode="Markdown",
@@ -88,6 +91,40 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ── /post flow ───────────────────────────────────────────────────────────
+
+async def info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_owner(update):
+        return
+    try:
+        uname = platform.uname()
+        cpu_usage = psutil.cpu_percent(interval=1)
+        cpu_count = psutil.cpu_count(logical=True)
+        ram = psutil.virtual_memory()
+        swap = psutil.swap_memory()
+        disk = psutil.disk_usage('/')
+        uptime_sec = int(psutil.boot_time())
+        from datetime import datetime
+        boot_time = datetime.fromtimestamp(uptime_sec).strftime("%d %b %Y %H:%M")
+
+        # Count videos in folder
+        vid_dir = os.path.join(os.getcwd(), "videos")
+        vid_count = len([f for f in os.listdir(vid_dir) if f.endswith('.mp4')]) if os.path.exists(vid_dir) else 0
+        vid_size = sum(os.path.getsize(os.path.join(vid_dir, f)) for f in os.listdir(vid_dir) if os.path.exists(os.path.join(vid_dir, f))) / (1024**2) if os.path.exists(vid_dir) else 0
+
+        msg = (
+            f"🖥️ VPS Status\n\n"
+            f"💻 OS: {uname.system} {uname.release}\n"
+            f"⚙️ CPU: {cpu_usage}% ({cpu_count} cores)\n"
+            f"🧠 RAM: {ram.used // (1024**2)}MB / {ram.total // (1024**2)}MB ({ram.percent}%)\n"
+            f"💾 Swap: {swap.used // (1024**2)}MB / {swap.total // (1024**2)}MB\n"
+            f"📀 Disk: {disk.used // (1024**3)}GB / {disk.total // (1024**3)}GB ({disk.percent}%)\n"
+            f"🕐 Boot: {boot_time}\n"
+            f"📹 Videos: {vid_count} files ({vid_size:.1f}MB)"
+        )
+        await update.message.reply_text(msg)
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {e}")
+
 
 async def post_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_owner(update):
@@ -213,6 +250,7 @@ if __name__ == "__main__":
     )
 
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("info", info_command))
     app.add_handler(conv)
 
     print("✅ Bot siap! Buka Telegram dan kirim /start")

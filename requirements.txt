@@ -7,3 +7,4 @@ google-auth-httplib2
 google-cloud-firestore
 tiktok-uploader
 python-dotenv
+psutil
